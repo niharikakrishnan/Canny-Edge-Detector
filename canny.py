@@ -3,6 +3,8 @@ import math
 from math import degrees, pi
 import cv2
 import matplotlib.pyplot as plt
+import argparse
+import os
 
 def convolution(image, kernel, normalisation):
 	image_row, image_col = image.shape
@@ -72,7 +74,7 @@ def gradient_operation(image, edge_filter, convert_to_degree, display):
 	gradient_direction += 180
 
 	print(gradient_direction)
-	return gradient_magnitude, gradient_direction
+	return gradient_magnitude, gradient_direction, vertical_gradient, horizontal_gradient
 
 def non_maxima_suppression(gradient_magnitude, gradient_direction, display):
 	image_row, image_col = gradient_magnitude.shape
@@ -145,23 +147,61 @@ def threshold(image, display):
 	return output
 
 
-#if __name__ == 'main'
-frame = cv2.imread('images/house.bmp')
-image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-#image = rgb2gray(frame)
-#print(image)
+if __name__ == '__main__':
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-i", "--image", required=True, help="Path to the image")
+    args = vars(ap.parse_args())
+    print(args)
 
-#image = np.array([[1,1,1,1,1,1,5],[1,1,1,1,1,5,9],[1,1,1,1,5,9,9],[1,1,1,5,9,9,9],[1,1,5,9,9,9,9],[1,5,9,9,9,9,9],[5,9,9,9,9,9,9]], dtype='int')
+    #frame = cv2.imread('images/house.bmp')
+    #image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-#Defining Prewitt's operator filter
-edge_filter = np.array([[-1, 0, 1], [-1, 0, 1], [-1, 0, 1]], dtype = 'int')
+    frame = cv2.imread(args['image'])
+    image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-kernel = np.array([[1,1,2,2,2,1,1],[1,2,2,4,2,2,1],[2,2,4,8,4,2,2],[2,4,8,16,8,4,2],[2,2,4,8,4,2,2],[1,2,2,4,2,2,1],[1,1,2,2,2,1,1]], dtype = 'int')
+    folder, fname_with_extension = os.path.split(args['image'])
+    print(folder)
+    print(fname_with_extension)
+
+    fname , extension = os.path.splitext(fname_with_extension)
+    print(fname)
 
 
-gaussian_image = gaussian_smoothing(image, kernel, display=True)
-gradient_magnitude, gradient_direction = gradient_operation(image, edge_filter, convert_to_degree=True, display=True)
-nms_image = non_maxima_suppression(gradient_magnitude, gradient_direction, display=True)
-threshold_image = threshold(nms_image, display = True)
+    path = str(fname) + "_Output"
+    access = 0o755
+
+    # Check whether the specified path exists or not
+    isExist = os.path.exists(path)
+
+    if not isExist:
+        # Create a new directory because it does not exist
+        os.makedirs(path,access)
+        print("The new directory is created!")
+
+
+    edge_filter = np.array([[-1, 0, 1], [-1, 0, 1], [-1, 0, 1]], dtype='int')
+
+
+
+    kernel = np.array(
+        [[1, 1, 2, 2, 2, 1, 1], [1, 2, 2, 4, 2, 2, 1], [2, 2, 4, 8, 4, 2, 2], [2, 4, 8, 16, 8, 4, 2], [2, 2, 4, 8, 4, 2, 2],
+         [1, 2, 2, 4, 2, 2, 1], [1, 1, 2, 2, 2, 1, 1]], dtype='int')
+
+    gaussian_image = gaussian_smoothing(image, kernel, display=True)
+    save_path = path + "/"+str(fname)+"_GaussianSmoothing.bmp"
+    plt.imsave(save_path, gaussian_image)
+
+
+    gradient_magnitude, gradient_direction,vertical_gradient, horizontal_gradient = gradient_operation(image, edge_filter, convert_to_degree=True, display=True)
+    plt.imsave(path + "/"+str(fname)+"_VerticalGradient.bmp", vertical_gradient)
+    plt.imsave(path + "/"+str(fname)+"_HorizontalGradient.bmp", horizontal_gradient)
+    plt.imsave(path + "/"+str(fname)+"_GradientMagnitude.bmp", gradient_magnitude)
+
+
+
+    nms_image = non_maxima_suppression(gradient_magnitude, gradient_direction, display=True)
+    plt.imsave(path + "/"+str(fname)+"_GradientMagnitude_NMS.bmp", nms_image)
+
+    # threshold_image = threshold(nms_image, display=True)
 
 
