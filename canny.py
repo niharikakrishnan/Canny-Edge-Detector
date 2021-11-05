@@ -23,26 +23,26 @@ def convolution(image, mask):
 	convoluted_image = np.zeros(image.shape)
 
 	#Defining the number of rows and columns that will be undefined based on the mask dimensions 
-	height = (mask_row - 1) // 2
-	width = (mask_col - 1) // 2
+	add_row = int(mask_row - 1) // 2
+	add_col = int(mask_col - 1) // 2
 	
 	#Initialising a 2D array with zeroes along with extra rows and columns to handle the undefine values
-	modified_image = np.zeros((image_row + (2 * height), image_col + (2 * width)))
+	modified_image = np.zeros((image_row + (2 * add_row), image_col + (2 * add_col)))
 
-	modified_image_height, modified_image_width = modified_image.shape
+	modified_image_row, modified_image_col = modified_image.shape
 	
 	#Defining the region of interest for the input image
-	modified_image[height: modified_image_height  - height, width:modified_image_width - width] = image
+	modified_image[add_row: modified_image_row - add_row, add_col:modified_image_col - add_col] = image
 
 	#Matrix multiplication - Convoluting image with kernel
-	for row in range(1, image_row-1):
-		for col in range(1, image_col-1):
+	for row in range(1,image_row-1):
+		for col in range(1,image_col-1):
 			#Using sliding window concept for maxtrix multiplication of kernel and region of interest of input image
 			convoluted_image[row, col] = np.sum(mask * modified_image[row : row + mask_row, col : col + mask_col])
 	
 	return convoluted_image
 
-def gaussianSmoothing(image, mask):
+def gaussian_smoothing(image, mask):
 	'''
 	Function to perform Gaussian Smoothing with a 7 x 7 mask. Region of interest surrounding
 	every reference pixel is computed by multiplying with the mask.
@@ -52,39 +52,44 @@ def gaussianSmoothing(image, mask):
 	'''
 	print("Applying Gaussian Smoothing to input image")
 	
+	#Getting the number of rows and columns of the image using .shape method
 	image_row, image_col = image.shape
 
 	#Applying Gaussian Smoothing to the input image
 	gaussian_image = convolution(image, mask)
 
 	#Normalising the gaussian smoothened image by using the sum of total pixels
-	for row in range(1, image_row-1):
-		for col in range(1, image_col-1):
-			if gaussian_image[row, col] > 255:
-				gaussian_image[row, col] /= 140
+	for row in range(image_row):
+		for col in range(image_col):
+			if abs(gaussian_image[row, col]) > 255:
+				gaussian_image[row, col] = abs(gaussian_image[row, col]) / 140
 	
 	return gaussian_image
 
-def gradientOperation(image, edge_filter):
+def gradient_operation(image, edge_filter):
 	'''
-	Function to perform gradient operations like horizontal gradient, vertical gradient and calculate gradient magnitude by taking
-	the absolute sum of horizontal and vertical gradients.
+	Function that uses Prewitt's operator to compute the horizontal gradient, vertical gradient. This is followed by the 
+	computation of gradient magnitude using the sqaure root of sum of squares of horizzontal and vertical gradient.
+	Gradient angle is computed using the tan inverse of vertical and horizontal gradient.
 	:param image: a grayscale image after Gaussian smoothing
-	:param edge_filter: Prewitt operator
-	:return horizontal_gradient: the horizontal gradient by convoluting the input image with prewitt's horizontal edge filter
-	:return vertical_gradient: the vertical gradient by convoluting the input image with prewitt's vertical edge filter
-	:return gradient_magnitude: the image which is the absolute sum of horizontal and vertical gradient
-	:return gradient_direction: the matrix that has the gradient angle at each pixel location
+	:param edge_filter: Prewitt's operator edge filter
+	:return horizontal_gradient: Normalized horizontal gradient
+	:return vertical_gradient: Normalized vertical gradient
+	:return gradient_magnitude: Normalized gradient magnitude image
+	:return gradient_direction: Gradient angle of the image
 	'''
-	print("Computing Horizontal Gradient of the Smoothened Image.")
+	#Getting the number of rows and columns of the image using .shape method
 	image_row, image_col = image.shape
 
+	print("Computing Horizontal Gradient.")
 	#Computing the horizontal gradient by convoluting the input image with prewitt's horizontal edge filter
 	horizontal_gradient = convolution(image, edge_filter)
 
 	print("Computing Vertical Gradient.")
 	#Transforming and flipping the horizontal gradient edge_filter to calculate vertical gradient
+	#Output: [[1,1,1], [0,0,0], [-1,-1,-1]]
 	vertical_edge_filter = np.flip(edge_filter.T, axis=0)
+	
 	#Computing the vertical gradient by convoluting the input image with prewitt's vertical edge filter
 	vertical_gradient = convolution(image, vertical_edge_filter)
 
@@ -92,33 +97,37 @@ def gradientOperation(image, edge_filter):
 	#Using the formula, gradient magnitude = Square Root of Squares of Horizontal and Vertical Gradient
 	gradient_magnitude = np.sqrt(np.square(horizontal_gradient) + np.square(vertical_gradient))
 
-	#Normalising the Gradient Magnitude by 1/3 of the original value
-	for row in range(1, image_row-1):
-		for col in range(1, image_col-1):
-			if gradient_magnitude[row, col] > 255:
-				gradient_magnitude[row, col] /= 3
+	#Normalising the Gradient Magnitude by dividing it with (3*root(2))
+	for row in range(image_row):
+		for col in range(image_col):
+			if abs(gradient_magnitude[row, col]) > 255:
+				gradient_magnitude[row, col] = abs(gradient_magnitude[row, col]) / 3*(np.sqrt(2))
 
 	print("Computing Gradient Angle.")
 	#Calculating gradient angle -> tan inverse (vertical gradient/horizontal gradient) in radians
 	gradient_angle = np.arctan2(vertical_gradient, horizontal_gradient)
 	
 	print("Computing Gradient Direction.")
-	#Converting gradient angle from radians to degree. Required to perform non-maxima suppression
+	#Converting gradient angle from radians to degree which returns in the range of -180 to 180. Required to perform non-maxima suppression
 	gradient_direction = np.rad2deg(gradient_angle)
+
+	#Adding 180 degrees to gradient angle for converting the range of angles from 0 to 360.
+	gradient_direction += 180
 
 	return horizontal_gradient, vertical_gradient, gradient_magnitude, gradient_direction 
 
-def nonMaximaSuppression(gradient_magnitude, gradient_direction):
+def non_maxima_suppression(gradient_magnitude, gradient_direction):
 	'''
 	Function to scan along the image gradient direction, and if pixels are not part of the local maxima they are set to zero.
 	This has the effect of suppressing all image information that is not part of local maxima.
-	:param gradient_magnitude: the image which is the absolute sum of horizontal and vertical gradient
+	:param gradient_magnitude: square root of sum of squares of horizontal and vertical gradient
 	:param gradient_direction: the matrix that has the gradient angle at each pixel location
-	:return nms_output: the image after NMS suppression
+	:return nms_output: Normalized gradient magnitude image after non-maxima suppression
 	'''
 	print("Applying Non Maxima Suppression")
+
 	gradient_row, gradient_col = gradient_magnitude.shape
-	
+	#Getting the number of rows and columns of the gradient magnitude using .shape method
 	nms_output = np.zeros(gradient_magnitude.shape)
 	
 	#Applying non maxima suppression to all pixels other than the border
@@ -126,11 +135,8 @@ def nonMaximaSuppression(gradient_magnitude, gradient_direction):
 		for col in range(1, gradient_col-1):
 			angle = gradient_direction[row, col]
 			
-			#Adding 180degrees to gradient angle for handling negative gradient angles and ease of sector calculation 
-			angle += 180
-
 			#Mapping to Sector 0, hence compare with left and right pixels
-			if (0 <= angle < 22.5) or (337.5 <= angle <= 360):
+			if (0 <= angle < 22.5) or (157.5 <= angle < 202.5) or (337.5 <= angle <= 360):
 				before_pixel = gradient_magnitude[row, col - 1]
 				after_pixel = gradient_magnitude[row, col + 1]
 
@@ -152,19 +158,21 @@ def nonMaximaSuppression(gradient_magnitude, gradient_direction):
 			#If the centre pixel is strictly greater than the neighbouring pixels, we use the gradient magnitude value, else zero
 			if ((gradient_magnitude[row, col] > before_pixel) and (gradient_magnitude[row, col] > after_pixel)):
 				nms_output[row, col] = gradient_magnitude[row, col]
+	
 	return nms_output
 
-def simpleThresholding(image):
+def simple_thresholding(image):
 	'''
-	Function to threshold the image after Non Maxima Suppression that will detect the edges based on threshold value.
-	:param image: the image after NMS suppression.
-	:return tresholding_output: The final output that has detected the edges in the input image using Canny's edge operator.
+	Function to compute binary edge maps using simple thresholding for thresholds chosen at the 25th, 50th and 75th percentiles
+	:param image: the image after non maxima suppression
+	:return tresholding_output: Binary edge maps using simple thresholding for thresholds chosen at the 25th, 50th and 75th percentiles
 	'''
 	print("Applying Simple Thresholding")
 	
+	#Getting the number of rows and columns of the image using .shape method
 	image_row, image_col = image.shape
-	thresholding = {}
 
+	#Using the percentile function to calculate the threshold value at 25th, 50th and 75th percentile
 	threshold_25 = np.percentile(list(set(image.flatten())), 25)
 	threshold_50 = np.percentile(list(set(image.flatten())), 50)
 	threshold_75 = np.percentile(list(set(image.flatten())), 75)
@@ -173,14 +181,17 @@ def simpleThresholding(image):
 	thresholding_output = {}
 
 	#Applying simple thresholding with threshold values at 25, 50 and 75th percentile
+	#If pixel intensity is strictly greater than the threshold value, we assign it with a value of 255 (white)
 	for threshold_key, threshold_value in threshold.items():
+		
+		#Intitializing output image array with zeroes
 		output = np.zeros(image.shape)
-
 		for row in range(image_row):
 			for col in range(image_col):
 				if image[row, col] > threshold_value:
 					output[row, col] = 255
 		thresholding_output[threshold_key] = output
+	
 	return thresholding_output
 
 if __name__ == '__main__':
@@ -218,29 +229,25 @@ if __name__ == '__main__':
          [1, 1, 2, 2, 2, 1, 1]], dtype='int')
 	
 	#Applying Gaussian smoothing to input image with given mask
-	gaussian_image = gaussianSmoothing(image, mask)
+	gaussian_image = gaussian_smoothing(image, mask)
 	cv2.imwrite(path + "/"+str(fname)+"_GaussianSmoothing.bmp", gaussian_image)
 
 	#Defining Prewitt's Edge Operator
 	edge_filter = np.array([[-1, 0, 1], [-1, 0, 1], [-1, 0, 1]], dtype='int')
 
 	#Applying gradient operation to compute horizontal gradient, vertical gradient, gradient magnitude and gradient angle
-	horizontal_gradient, vertical_gradient, gradient_magnitude, gradient_direction = gradientOperation(image, edge_filter)
+	horizontal_gradient, vertical_gradient, gradient_magnitude, gradient_direction = gradient_operation(image, edge_filter)
 	cv2.imwrite(path + "/"+str(fname)+"_HorizontalGradient.bmp", horizontal_gradient)
 	cv2.imwrite(path + "/"+str(fname)+"_VerticalGradient.bmp", vertical_gradient)
 	cv2.imwrite(path + "/"+str(fname)+"_GradientMagnitude.bmp", gradient_magnitude)
 
 	#Applying Non Maima Suppression to the gradient magnitude
-	nonmaxima_image = nonMaximaSuppression(gradient_magnitude, gradient_direction)
+	nonmaxima_image = non_maxima_suppression(gradient_magnitude, gradient_direction)
 	cv2.imwrite(path + "/"+str(fname)+"_NonMaximaSuppression.bmp", nonmaxima_image)
 
 	#Applying Simple thresholding with thresholds chosen at 25th, 50th and 75th percentile
-	threshold_image = simpleThresholding(nonmaxima_image)
+	threshold_image = simple_thresholding(nonmaxima_image)
 	for threshold_name, threshold_value in threshold_image.items():
 		cv2.imwrite(path + "/"+str(fname)+ "_"+threshold_name+".bmp", threshold_value)
 
-	print("Canny Edge Detector Implemented and output images stored in the directory!")
-
-
-
-
+	print("Canny Edge Detector implemented and output images stored in the directory!")
