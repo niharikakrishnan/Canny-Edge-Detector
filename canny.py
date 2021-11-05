@@ -8,10 +8,10 @@ def convolution(image, mask):
 	'''
 	Function to perform convolution of an image with a mask using mtri multiplication. In cases where the mask goes 
 	outside of the image border, it is considered as undefined and replaced with zeroes. Region of interest surrounding 
-	every reference pixel is computed and multiplied with the mask
-	:param image:
-	:param mask: 
-	:return convoluted_image: Convoluted Image with shape same as the input image
+	every reference pixel is computed and multiplied with the mask.
+	:param image: a grayscale image of size N X M 
+	:param mask: a mask/kernel of size N X N
+	:return convoluted_image: image after convolution with size N X M, same as output image
 	'''
 	
 	#Getting the number of rows and columns of the image and the mask using .shape method
