@@ -6,7 +6,7 @@ import os
 
 def convolution(image, mask):
 	'''
-	Function to perform convolution of an image with a mask using mtri multiplication. In cases where the mask goes 
+	Function to perform convolution of an image with a mask using matrix multiplication. In cases where the mask goes
 	outside of the image border, it is considered as undefined and replaced with zeroes. Region of interest surrounding 
 	every reference pixel is computed and multiplied with the mask.
 	:param image: a grayscale image of size N X M 
@@ -44,10 +44,11 @@ def convolution(image, mask):
 
 def gaussianSmoothing(image, mask):
 	'''
-	
-	:param image:
-	:param mask: 
-	:return gauusian_image: 
+	Function to perform Gaussian Smoothing with a 7 x 7 mask. Region of interest surrounding
+	every reference pixel is computed by multiplying with the mask.
+	:param image: a grayscale image of size N X M
+	:param mask: a mask/kernel of size 7 X 7
+	:return gaussian_image: image after smoothing
 	'''
 	print("Applying Gaussian Smoothing to input image")
 	
@@ -66,13 +67,14 @@ def gaussianSmoothing(image, mask):
 
 def gradientOperation(image, edge_filter):
 	'''
-	
-	:param image:
-	:param edge_filter: 
-	:return horizontal_gradient:
-	:return vertical_gradient:
-	:return gradient_magnitude:
-	:return gradient_direction: 
+	Function to perform gradient operations like horizontal gradient, vertical gradient and calculate gradient magnitude by taking
+	the absolute sum of horizontal and vertical gradients.
+	:param image: a grayscale image after Gaussian smoothing
+	:param edge_filter: Prewitt operator
+	:return horizontal_gradient: the horizontal gradient by convoluting the input image with prewitt's horizontal edge filter
+	:return vertical_gradient: the vertical gradient by convoluting the input image with prewitt's vertical edge filter
+	:return gradient_magnitude: the image which is the absolute sum of horizontal and vertical gradient
+	:return gradient_direction: the matrix that has the gradient angle at each pixel location
 	'''
 	print("Computing Horizontal Gradient of the Smoothened Image.")
 	image_row, image_col = image.shape
@@ -108,10 +110,11 @@ def gradientOperation(image, edge_filter):
 
 def nonMaximaSuppression(gradient_magnitude, gradient_direction):
 	'''
-	
-	:param gradient_magnitude:
-	:param gradient_direction:
-	:return nms_output:
+	Function to scan along the image gradient direction, and if pixels are not part of the local maxima they are set to zero.
+	This has the effect of suppressing all image information that is not part of local maxima.
+	:param gradient_magnitude: the image which is the absolute sum of horizontal and vertical gradient
+	:param gradient_direction: the matrix that has the gradient angle at each pixel location
+	:return nms_output: the image after NMS suppression
 	'''
 	print("Applying Non Maxima Suppression")
 	gradient_row, gradient_col = gradient_magnitude.shape
@@ -153,9 +156,9 @@ def nonMaximaSuppression(gradient_magnitude, gradient_direction):
 
 def simpleThresholding(image):
 	'''
-
-	:param image:
-	:return tresholding_output: 
+	Function to threshold the image after Non Maxima Suppression that will detect the edges based on threshold value.
+	:param image: the image after NMS suppression.
+	:return tresholding_output: The final output that has detected the edges in the input image using Canny's edge operator.
 	'''
 	print("Applying Simple Thresholding")
 	
